@@ -1,0 +1,70 @@
+@model List<PlataformaCreditos.Models.SolicitudCredito>
+
+<h2>Mis Solicitudes</h2>
+
+<form method="get">
+    Estado:
+    <select name="estado">
+        <option value="">Todos</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="Aprobado">Aprobado</option>
+        <option value="Rechazado">Rechazado</option>
+    </select>
+
+    Min Monto:
+    <input type="number" name="minMonto" step="0.01" />
+
+    Max Monto:
+    <input type="number" name="maxMonto" step="0.01" />
+
+    Fecha Inicio:
+    <input type="date" name="fechaInicio" />
+
+    Fecha Fin:
+    <input type="date" name="fechaFin" />
+
+    <button type="submit">Filtrar</button>
+</form>
+
+<br />
+
+<!-- 🔥 MENSAJE CUANDO NO HAY DATOS -->
+@if (Model != null && !Model.Any())
+{
+    <p style="color:gray;">No se encontraron resultados con los filtros aplicados.</p>
+}
+
+<!-- 🔥 MOSTRAR ERRORES -->
+@if (!ViewData.ModelState.IsValid)
+{
+    <div style="color:red;">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <p>@error.ErrorMessage</p>
+        }
+    </div>
+}
+
+<table border="1">
+    <tr>
+        <th>Monto</th>
+        <th>Fecha</th>
+        <th>Estado</th>
+        <th>Acción</th>
+    </tr>
+
+@if (Model != null)
+{
+    foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.MontoSolicitado</td>
+            <td>@item.FechaSolicitud.ToString("yyyy-MM-dd")</td>
+            <td>@item.Estado</td>
+            <td>
+                <a href="/Solicitudes/Detalle/@item.Id">Ver</a>
+            </td>
+        </tr>
+    }
+}
+</table>

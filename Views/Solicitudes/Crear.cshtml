@@ -1,0 +1,38 @@
+@{
+    ViewData["Title"] = "Crear Solicitud";
+}
+
+<h2>Crear Solicitud</h2>
+
+<!-- 🔴 MENSAJES DE ERROR -->
+@if (!ViewData.ModelState.IsValid)
+{
+    <div style="color:red; margin-bottom:10px;">
+        <ul>
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@error.ErrorMessage</li>
+            }
+        </ul>
+    </div>
+}
+
+<!-- 🟢 MENSAJE DE ÉXITO -->
+@if (ViewBag.Mensaje != null)
+{
+    <div style="color:green; margin-bottom:10px;">
+        <strong>@ViewBag.Mensaje</strong>
+    </div>
+}
+
+<!-- 🧾 FORMULARIO -->
+<form method="post">
+    <div>
+        <label>Monto:</label><br />
+        <input type="number" name="monto" step="0.01" min="0.01" required />
+    </div>
+
+    <br />
+
+    <button type="submit">Enviar</button>
+</form>

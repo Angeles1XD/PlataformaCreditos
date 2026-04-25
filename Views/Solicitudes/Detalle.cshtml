@@ -1,0 +1,15 @@
+@model PlataformaCreditos.Models.SolicitudCredito
+
+<h2>Detalle de Solicitud</h2>
+
+<p><b>ID:</b> @Model.Id</p>
+<p><b>Monto:</b> @Model.MontoSolicitado</p>
+<p><b>Fecha:</b> @Model.FechaSolicitud</p>
+<p><b>Estado:</b> @Model.Estado</p>
+
+@if (Model.Estado == PlataformaCreditos.Models.EstadoSolicitud.Rechazado)
+{
+    <p><b>Motivo:</b> @Model.MotivoRechazo</p>
+}
+
+<a href="/Solicitudes">Volver</a>
