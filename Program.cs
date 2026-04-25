@@ -37,20 +37,20 @@ else
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(); // ✅ IMPORTANTE EN NET 8
 app.UseRouting();
 
-app.UseAuthentication(); // 🔥 IMPORTANTE
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
+// ❌ ELIMINADO: MapStaticAssets()
+// ❌ ELIMINADO: WithStaticAssets()
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
-app.MapRazorPages()
-   .WithStaticAssets();
+app.MapRazorPages();
 
 
 // =======================================
