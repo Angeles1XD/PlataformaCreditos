@@ -5,14 +5,19 @@ using PlataformaCreditos.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔹 CONEXIÓN SQLITE
+// =======================================
+// 🔹 SQLITE (IMPORTANTE PARA RENDER)
+// =======================================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string not found.");
+    ?? "Data Source=/tmp/app.db"; // fallback seguro
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
+
+// =======================================
 // 🔥 IDENTITY
+// =======================================
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -23,17 +28,26 @@ builder.Services.AddControllersWithViews();
 
 
 // =======================================
-// 🔥 REDIS
+// 🔥 REDIS (SIN CRASH)
 // =======================================
-builder.Services.AddStackExchangeRedisCache(options =>
+var redisConnection = builder.Configuration["Redis__ConnectionString"];
+
+if (!string.IsNullOrEmpty(redisConnection))
 {
-    options.Configuration = builder.Configuration["Redis__ConnectionString"]
-        ?? throw new Exception("Redis no configurado");
-});
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "PlataformaCreditos_";
+    });
+}
+else
+{
+    Console.WriteLine("⚠ Redis no configurado, usando memoria local");
+}
 
 
 // =======================================
-// 🔥 SESIÓN
+// 🔥 SESIONES
 // =======================================
 builder.Services.AddSession(options =>
 {
@@ -44,7 +58,8 @@ builder.Services.AddSession(options =>
 
 
 // =======================================
-
+// 🔥 APP
+// =======================================
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -62,11 +77,27 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
+
+// =======================================
 // 🔥 RUTAS
+// =======================================
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
+
+
+// =======================================
+// 🔥 CREAR BD AUTOMÁTICAMENTE (CLAVE)
+// =======================================
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.EnsureCreated();
+}
+
+
+// =======================================
 
 app.Run();
