@@ -1,0 +1,19 @@
+<h2>Rechazar Solicitud</h2>
+
+<form method="post">
+
+    <!-- 🔥 ESTA ES LA FORMA CORRECTA -->
+    <input type="hidden" name="id" value="@ViewContext.RouteData.Values["id"]" />
+
+    <div>
+        <label>Motivo:</label>
+        <input type="text" name="motivo" required />
+    </div>
+
+    <br />
+
+    <button class="btn btn-danger">
+        Rechazar
+    </button>
+
+</form>

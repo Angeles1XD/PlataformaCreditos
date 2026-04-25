@@ -4,21 +4,27 @@ using PlataformaCreditos.Models;
 using System.Linq;
 using System.Security.Claims;
 
+// 🔥 REDIS + JSON
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
+
 namespace PlataformaCreditos.Controllers
 {
     public class SolicitudesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDistributedCache _cache;
 
-        public SolicitudesController(ApplicationDbContext context)
+        public SolicitudesController(ApplicationDbContext context, IDistributedCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         // =========================
-        // LISTADO + FILTROS (PREGUNTA 2)
+        // LISTADO + CACHE (60s)
         // =========================
-        public IActionResult Index(string? estado, decimal? minMonto, decimal? maxMonto,
+        public async Task<IActionResult> Index(string? estado, decimal? minMonto, decimal? maxMonto,
                                    DateTime? fechaInicio, DateTime? fechaFin)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -29,51 +35,74 @@ namespace PlataformaCreditos.Controllers
             if (cliente == null)
                 return View(new List<SolicitudCredito>());
 
-            var query = _context.Solicitudes
-                .Where(s => s.ClienteId == cliente.Id)
-                .AsQueryable();
+            var cacheKey = $"solicitudes_{userId}";
 
-            // 🔴 VALIDACIONES
-            if (minMonto.HasValue && minMonto < 0)
-                ModelState.AddModelError("", "El monto mínimo no puede ser negativo");
+            var cachedData = await _cache.GetStringAsync(cacheKey);
 
-            if (maxMonto.HasValue && maxMonto < 0)
-                ModelState.AddModelError("", "El monto máximo no puede ser negativo");
+            List<SolicitudCredito> lista;
 
-            if (fechaInicio.HasValue && fechaFin.HasValue && fechaInicio > fechaFin)
-                ModelState.AddModelError("", "La fecha inicio no puede ser mayor que la fecha fin");
-
-            if (!ModelState.IsValid)
-                return View(new List<SolicitudCredito>());
-
-            // 🔵 FILTROS
-            if (!string.IsNullOrEmpty(estado) &&
-                Enum.TryParse<EstadoSolicitud>(estado, out var estadoEnum))
+            if (cachedData != null)
             {
-                query = query.Where(s => s.Estado == estadoEnum);
+                lista = JsonSerializer.Deserialize<List<SolicitudCredito>>(cachedData) ?? new List<SolicitudCredito>();
             }
+            else
+            {
+                var query = _context.Solicitudes
+                    .Where(s => s.ClienteId == cliente.Id)
+                    .AsQueryable();
 
-            if (minMonto.HasValue)
-                query = query.Where(s => s.MontoSolicitado >= minMonto);
+                // VALIDACIONES
+                if (minMonto.HasValue && minMonto < 0)
+                    ModelState.AddModelError("", "El monto mínimo no puede ser negativo");
 
-            if (maxMonto.HasValue)
-                query = query.Where(s => s.MontoSolicitado <= maxMonto);
+                if (maxMonto.HasValue && maxMonto < 0)
+                    ModelState.AddModelError("", "El monto máximo no puede ser negativo");
 
-            if (fechaInicio.HasValue)
-                query = query.Where(s => s.FechaSolicitud >= fechaInicio);
+                if (fechaInicio.HasValue && fechaFin.HasValue && fechaInicio > fechaFin)
+                    ModelState.AddModelError("", "La fecha inicio no puede ser mayor que la fecha fin");
 
-            if (fechaFin.HasValue)
-                query = query.Where(s => s.FechaSolicitud <= fechaFin);
+                if (!ModelState.IsValid)
+                    return View(new List<SolicitudCredito>());
 
-            var lista = query
-                .OrderByDescending(s => s.FechaSolicitud)
-                .ToList();
+                // FILTROS
+                if (!string.IsNullOrEmpty(estado) &&
+                    Enum.TryParse<EstadoSolicitud>(estado, out var estadoEnum))
+                {
+                    query = query.Where(s => s.Estado == estadoEnum);
+                }
+
+                if (minMonto.HasValue)
+                    query = query.Where(s => s.MontoSolicitado >= minMonto);
+
+                if (maxMonto.HasValue)
+                    query = query.Where(s => s.MontoSolicitado <= maxMonto);
+
+                if (fechaInicio.HasValue)
+                    query = query.Where(s => s.FechaSolicitud >= fechaInicio);
+
+                if (fechaFin.HasValue)
+                    query = query.Where(s => s.FechaSolicitud <= fechaFin);
+
+                lista = query
+                    .OrderByDescending(s => s.FechaSolicitud)
+                    .ToList();
+
+                // 🔥 CACHE 60s
+                var options = new DistributedCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromSeconds(60));
+
+                await _cache.SetStringAsync(
+                    cacheKey,
+                    JsonSerializer.Serialize(lista),
+                    options
+                );
+            }
 
             return View(lista);
         }
 
         // =========================
-        // DETALLE (PREGUNTA 2)
+        // DETALLE + SESIÓN
         // =========================
         public IActionResult Detalle(int id)
         {
@@ -82,24 +111,23 @@ namespace PlataformaCreditos.Controllers
             if (solicitud == null)
                 return NotFound();
 
+            // 🔥 GUARDAR EN SESIÓN
+            HttpContext.Session.SetString("UltimaSolicitud", solicitud.MontoSolicitado.ToString());
+
             return View(solicitud);
         }
 
         // =========================
-        // CREAR (GET)
+        // CREAR
         // =========================
         public IActionResult Crear()
         {
             return View();
         }
 
-        // =========================
-        // CREAR (POST) (PREGUNTA 3)
-        // =========================
         [HttpPost]
-        public IActionResult Crear(decimal monto)
+        public async Task<IActionResult> Crear(decimal monto)
         {
-            // 🔴 VALIDAR AUTENTICACIÓN
             if (!(User?.Identity?.IsAuthenticated ?? false))
             {
                 ModelState.AddModelError("", "Debe iniciar sesión");
@@ -108,8 +136,7 @@ namespace PlataformaCreditos.Controllers
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var cliente = _context.Clientes
-                .FirstOrDefault(c => c.UsuarioId == userId);
+            var cliente = _context.Clientes.FirstOrDefault(c => c.UsuarioId == userId);
 
             if (cliente == null)
             {
@@ -117,14 +144,12 @@ namespace PlataformaCreditos.Controllers
                 return View();
             }
 
-            // 🔴 CLIENTE ACTIVO
             if (!cliente.Activo)
             {
                 ModelState.AddModelError("", "Cliente inactivo");
                 return View();
             }
 
-            // 🔴 SOLO 1 PENDIENTE
             if (_context.Solicitudes.Any(s =>
                 s.ClienteId == cliente.Id &&
                 s.Estado == EstadoSolicitud.Pendiente))
@@ -133,21 +158,18 @@ namespace PlataformaCreditos.Controllers
                 return View();
             }
 
-            // 🔴 MONTO > 0
             if (monto <= 0)
             {
                 ModelState.AddModelError("", "El monto debe ser mayor a 0");
                 return View();
             }
 
-            // 🔴 MÁXIMO 10x INGRESOS
             if (monto > cliente.IngresosMensuales * 10)
             {
-                ModelState.AddModelError("", "El monto supera el límite permitido (10x ingresos)");
+                ModelState.AddModelError("", "Excede el límite (10x ingresos)");
                 return View();
             }
 
-            // ✅ CREAR
             var solicitud = new SolicitudCredito
             {
                 ClienteId = cliente.Id,
@@ -159,15 +181,18 @@ namespace PlataformaCreditos.Controllers
             _context.Solicitudes.Add(solicitud);
             _context.SaveChanges();
 
-            ViewBag.Mensaje = "Solicitud creada correctamente ✔";
+            // 🔥 INVALIDAR CACHE
+            await _cache.RemoveAsync($"solicitudes_{userId}");
+
+            ViewBag.Mensaje = "Solicitud creada ✔";
 
             return View();
         }
 
         // =========================
-        // APROBAR
+        // APROBAR + INVALIDAR CACHE
         // =========================
-        public IActionResult Aprobar(int id)
+        public async Task<IActionResult> Aprobar(int id)
         {
             var solicitud = _context.Solicitudes.FirstOrDefault(s => s.Id == id);
 
@@ -179,16 +204,19 @@ namespace PlataformaCreditos.Controllers
             if (cliente == null)
                 return NotFound();
 
-            // 🔴 SOLO SI ES PENDIENTE
             if (solicitud.Estado != EstadoSolicitud.Pendiente)
-                return BadRequest("La solicitud ya fue procesada");
+                return BadRequest("Ya fue procesada");
 
-            // 🔴 REGLA 5x
             if (solicitud.MontoSolicitado > cliente.IngresosMensuales * 5)
-                return BadRequest("No se puede aprobar: excede 5x ingresos");
+                return BadRequest("Excede 5x ingresos");
 
             solicitud.Estado = EstadoSolicitud.Aprobado;
             _context.SaveChanges();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // 🔥 INVALIDAR CACHE
+            await _cache.RemoveAsync($"solicitudes_{userId}");
 
             return RedirectToAction("Index");
         }

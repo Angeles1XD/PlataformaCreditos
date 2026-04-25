@@ -1,70 +1,115 @@
 @model List<PlataformaCreditos.Models.SolicitudCredito>
 
-<h2>Mis Solicitudes</h2>
+<h2 class="mb-3">📄 Mis Solicitudes</h2>
 
-<form method="get">
-    Estado:
-    <select name="estado">
-        <option value="">Todos</option>
-        <option value="Pendiente">Pendiente</option>
-        <option value="Aprobado">Aprobado</option>
-        <option value="Rechazado">Rechazado</option>
-    </select>
+<form method="get" class="row g-2 mb-4">
 
-    Min Monto:
-    <input type="number" name="minMonto" step="0.01" />
+    <div class="col-md-2">
+        <label>Estado</label>
+        <select name="estado" class="form-control">
+            <option value="">Todos</option>
+            <option value="Pendiente" selected="@(Context.Request.Query["estado"]=="Pendiente")">Pendiente</option>
+            <option value="Aprobado" selected="@(Context.Request.Query["estado"]=="Aprobado")">Aprobado</option>
+            <option value="Rechazado" selected="@(Context.Request.Query["estado"]=="Rechazado")">Rechazado</option>
+        </select>
+    </div>
 
-    Max Monto:
-    <input type="number" name="maxMonto" step="0.01" />
+    <div class="col-md-2">
+        <label>Min Monto</label>
+        <input type="number" name="minMonto" step="0.01" class="form-control"
+               value="@Context.Request.Query["minMonto"]" />
+    </div>
 
-    Fecha Inicio:
-    <input type="date" name="fechaInicio" />
+    <div class="col-md-2">
+        <label>Max Monto</label>
+        <input type="number" name="maxMonto" step="0.01" class="form-control"
+               value="@Context.Request.Query["maxMonto"]" />
+    </div>
 
-    Fecha Fin:
-    <input type="date" name="fechaFin" />
+    <div class="col-md-2">
+        <label>Fecha Inicio</label>
+        <input type="date" name="fechaInicio" class="form-control"
+               value="@Context.Request.Query["fechaInicio"]" />
+    </div>
 
-    <button type="submit">Filtrar</button>
+    <div class="col-md-2">
+        <label>Fecha Fin</label>
+        <input type="date" name="fechaFin" class="form-control"
+               value="@Context.Request.Query["fechaFin"]" />
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+    </div>
+
 </form>
 
-<br />
-
-<!-- 🔥 MENSAJE CUANDO NO HAY DATOS -->
+<!-- 🔥 MENSAJE SIN RESULTADOS -->
 @if (Model != null && !Model.Any())
 {
-    <p style="color:gray;">No se encontraron resultados con los filtros aplicados.</p>
+    <div class="alert alert-warning">
+        No se encontraron resultados con los filtros aplicados.
+    </div>
 }
 
-<!-- 🔥 MOSTRAR ERRORES -->
+<!-- 🔥 ERRORES -->
 @if (!ViewData.ModelState.IsValid)
 {
-    <div style="color:red;">
+    <div class="alert alert-danger">
         @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
         {
-            <p>@error.ErrorMessage</p>
+            <div>@error.ErrorMessage</div>
         }
     </div>
 }
 
-<table border="1">
-    <tr>
-        <th>Monto</th>
-        <th>Fecha</th>
-        <th>Estado</th>
-        <th>Acción</th>
-    </tr>
+<!-- 🔥 TABLA -->
+<table class="table table-bordered table-striped">
 
-@if (Model != null)
-{
-    foreach (var item in Model)
-    {
+    <thead class="table-dark">
         <tr>
-            <td>@item.MontoSolicitado</td>
-            <td>@item.FechaSolicitud.ToString("yyyy-MM-dd")</td>
-            <td>@item.Estado</td>
-            <td>
-                <a href="/Solicitudes/Detalle/@item.Id">Ver</a>
-            </td>
+            <th>Monto</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Acción</th>
         </tr>
-    }
-}
+    </thead>
+
+    <tbody>
+        @if (Model != null)
+        {
+            foreach (var item in Model)
+            {
+                <tr>
+                    <td>S/ @item.MontoSolicitado</td>
+                    <td>@item.FechaSolicitud.ToString("yyyy-MM-dd")</td>
+
+                    <td>
+                        @if (item.Estado == PlataformaCreditos.Models.EstadoSolicitud.Pendiente)
+                        {
+                            <span class="badge bg-warning text-dark">Pendiente</span>
+                        }
+                        else if (item.Estado == PlataformaCreditos.Models.EstadoSolicitud.Aprobado)
+                        {
+                            <span class="badge bg-success">Aprobado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Rechazado</span>
+                        }
+                    </td>
+
+                    <td>
+                        <a class="btn btn-sm btn-info"
+                           asp-controller="Solicitudes"
+                           asp-action="Detalle"
+                           asp-route-id="@item.Id">
+                            Ver
+                        </a>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+
 </table>

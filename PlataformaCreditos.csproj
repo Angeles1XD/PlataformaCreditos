@@ -12,11 +12,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 🔹 ASP.NET / EF -->
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.0" />
+
+    <!-- 🔹 DATABASE -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
+
+    <!-- 🔥 REDIS (CORRECTO PARA NET 8) -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

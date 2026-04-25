@@ -1,0 +1,34 @@
+@model List<PlataformaCreditos.Models.SolicitudCredito>
+
+<h2>Panel Analista</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Monto</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.MontoSolicitado</td>
+            <td>
+                <a class="btn btn-success"
+                   asp-action="Aprobar"
+                   asp-route-id="@item.Id">
+                   Aprobar
+                </a>
+
+                <a class="btn btn-danger"
+                   asp-action="Rechazar"
+                   asp-route-id="@item.Id">
+                   Rechazar
+                </a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
